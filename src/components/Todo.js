@@ -5,75 +5,97 @@ import './Todo.css';
 
 const baseUrl = 'http://localhost:8080/msg'
 
-function Task({ task, index, completeTask, removeTask }) {
+function Task({ msg ,index, done, completeTask, removeTask }) {
     return (
         <div
             className="task"
-            style={{ textDecoration: task.completed ? "line-through" : "" }}
+            style={{ textDecoration: done ? "line-through" : "" }}
         >
-            {task.msg}
-            <span onClick={() => removeTask(task.id)}><MdDeleteForever/></span>
-            <button onClick={() => completeTask(index)}>Complete</button>
+            {msg}
+            <span onClick={() => removeTask(index)}><MdDeleteForever/></span>
+            <button style={{background: done ? "red": "green"}} onClick={() => completeTask(index)}>{ done ? "Incomplete": "Completed"}</button>
         </div>
     );
 }
 function Todo() {
-    const [tasksRemaining, setTasksRemaining] = useState(0);
+    const [TodosRemaining, setTodosRemaining] = useState(0);
     const [loading, setLoading] = useState(true);
-    const [tasks, setTasks] = useState([]);
-    useEffect(()=>{
-        const fetchData = async ()=>{
-            setLoading(true);
-            try{
-                const {data : response} = await axios.get(baseUrl+'/getAll');
-                console.log(response)
-                setTasks(response);
-            }catch(error){
-                console.error(error.message);
-            }
-            setLoading(false);
+    const [Todos, setTodos] = useState([]);
+
+    const fetchData = async ()=>{
+        setLoading(true);
+        try{
+            const {data : response} = await axios.get(baseUrl+'/getAll');
+            setTodos(response);
+        }catch(error){
+            console.error(error.message);
         }
-        fetchData()
+        setLoading(false);
+    }
+
+    useEffect(()=>{
+        const getAllTodos = async()=>{
+            const allTodos = await fetchData();
+            if(allTodos)setTodos(allTodos);
+        }
+        getAllTodos()
     },[]);
       
+    // console.log(Todos)
     useEffect(() => { 
-      setTasksRemaining(tasks.filter(task => !task.completed).length) 
-    },[tasks]);
+      setTodosRemaining(Todos.filter(task => !task.done).length) 
+    },[Todos]);
 
-    const addTask = title => {
+    const addTask = async (title) => {
         const newMsg = {msg: title}
-        // console.log(newMsg)
-        axios.post(baseUrl+'/add',newMsg)
-        .then((res)=>{
-            console.log(res)
-            tasks.push(res.data) 
-            setTasks({title : tasks.data})
+        const response  = await axios.post(baseUrl+'/add',newMsg);
+        setTodos([...Todos,response.data])
+    };
+    
+    const completeTask = async (index) => {
+        const newTodos = [...Todos];
+        let isDone = !newTodos[index].done;  
+        const msgUpdate = {
+            msg: newTodos[index].msg,
+            done: isDone
+        }
+        await axios.put(baseUrl+'/update/'+ newTodos[index].id, msgUpdate); 
+        Todos.filter((todo)=>{
+            return todo.id ===newTodos[index].id ? todo.done = isDone : !isDone
         })
-    };
-    
-    const completeTask = index => {
-
-        const newTasks = [...tasks];
-        newTasks[index].completed = true;
-        setTasks(newTasks);
-    };
-    
-    const removeTask = index => {
-        axios.delete(baseUrl+"/delete/"+index)
-        .then(setTasks(tasks))
+        setTodos([...Todos])
         
+       
+    };
+    const updateTask = index =>{
+        const newUpdateTodos = [...Todos];
+        const msgUpdate = {
+            msg: "", //get from input,
+            done: false
+        }
+        axios.put(baseUrl+'/update/'+ newUpdateTodos[index].id, msgUpdate)
+        .then( setTodos(newUpdateTodos))
+    }
+    
+    const removeTask = async (index) => {
+        await axios.delete(`${baseUrl}/delete/${Todos[index].id}`)
+        const newTodoList = Todos.filter((todo)=>{
+            return todo.id !== Todos[index].id;
+        })
+        setTodos(newTodoList)
     };
 
     return (
         <div className="todo-container">
-            <div className="header">Pending ToDos ({tasksRemaining})</div>
-            <div className="tasks">
-                {tasks.map((task, index) => (
+            <div className="header">Pending ToDos ({TodosRemaining})</div>
+            <div className="Todos">
+                {Todos.map((task, index) => (
                     <Task
-                    task={task}
-                    index={index}
+                    msg={task.msg}
+                    index = {index}
                     completeTask={completeTask}
                     removeTask={removeTask}
+                    done={task.done}
                     key={index}
                     />
                 ))}
